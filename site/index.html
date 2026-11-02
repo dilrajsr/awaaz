@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Awaaz — Raise a complaint in your own language</title>
+<meta name="description" content="Awaaz is a multilingual AI assistant that helps people in India find the right government department, write a formal complaint in their language, and know exactly how to submit it.">
+<meta name="theme-color" content="#0b0b1e" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f2ff" media="(prefers-color-scheme: light)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&family=Noto+Sans+Gujarati:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<a class="skip" href="#assistant">Skip to the assistant</a>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<!-- First visit: choose a language before anything else. Written in each language's own script so no English is needed. -->
+<div id="langGate" class="gate-screen" role="dialog" aria-modal="true" aria-labelledby="gateTitle" hidden>
+  <div class="gate-card">
+    <div class="mark big">आ</div>
+    <h2 id="gateTitle" class="gate-title">
+      <span lang="hi">अपनी भाषा चुनें</span> · <span lang="pa">ਆਪਣੀ ਭਾਸ਼ਾ ਚੁਣੋ</span> · <span lang="en">Choose your language</span>
+    </h2>
+    <p class="gate-sub" aria-hidden="true">தமிழ் · বাংলা · मराठी · తెలుగు · ગુજરાતી · ಕನ್ನಡ · മലയാളം</p>
+    <div id="gateGrid" class="gate-grid"></div>
+    <button type="button" id="gateClose" class="linkbtn" hidden>✕</button>
+  </div>
+</div>
+
+<header class="nav">
+  <a class="brand" href="#top"><span class="mark">आ</span> Awaaz</a>
+  <nav aria-label="Main">
+    <a href="#how" data-i18n="nav_how">How it works</a>
+    <a href="#assistant" data-i18n="nav_assistant">Assistant</a>
+    <a href="#saved" data-i18n="nav_saved">My saved</a>
+    <a href="#trust" data-i18n="nav_trust">Trust</a>
+  </nav>
+  <div class="navr">
+    <button class="btn small ghost langbtn" id="navLang" type="button" aria-label="Language / भाषा / ਭਾਸ਼ਾ">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>
+      <span id="navLangName">English</span>
+    </button>
+    <button class="icon sm" id="a11y" type="button" aria-label="Accessibility options" aria-expanded="false" title="Accessibility">Aa</button>
+    <button class="btn small" id="authBtn" type="button" data-i18n="login">Log in</button>
+  </div>
+  <div class="a11ymenu" id="a11ymenu" hidden>
+    <div class="seg" id="themeSeg" role="group" aria-label="Theme"><button type="button" data-theme="auto" aria-pressed="true">Auto</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button><button type="button" data-theme="light" aria-pressed="false">Light</button></div>
+    <label><input type="checkbox" id="optPlain"> Plain text headings (no animation)</label>
+    <label><input type="checkbox" id="optLarge"> Larger text</label>
+    <label><input type="checkbox" id="optContrast"> High contrast</label>
+  </div>
+</header>
+
+<div id="emergencyBar" class="emergency" hidden role="alert"></div>
+<div id="remindBar" class="remind" hidden></div>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow" data-i18n="hero_eyebrow">AI assistant for citizens of India</p>
+      <h1 data-gl><span data-i18n="hero_h1a">Speak your problem.</span> <em data-i18n="hero_h1b">We prepare the complaint.</em></h1>
+      <p class="lead" data-i18n="hero_lead">Describe the issue by voice or text in your own language. Awaaz finds the right department and portal on official government sites, writes a formal complaint, and tells you exactly how to submit it.</p>
+      <div class="cta">
+        <button class="btn" id="ctaSpeak" type="button" data-i18n="cta_speak">Tap to speak</button>
+        <a class="btn ghost" href="#assistant" data-i18n="cta_type">Type instead</a>
+      </div>
+      <ul class="chips" id="langChips" aria-label="Languages"></ul>
+    </div>
+    <div class="hero-visual" aria-hidden="false">
+      <button class="orb" id="orb" type="button" data-i18n-aria="cta_speak" aria-label="Tap to speak">
+        <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <p class="orb-label" data-i18n="cta_speak">Tap to speak</p>
+      <ul class="proof">
+        <li>🔒 <span data-i18n="t1_h">Never pretends to submit</span></li>
+        <li>🏛️ <span data-i18n="t2_h">Official sources only</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="strip rv">
+    <div><i>🛡️</i><span data-i18n="t1_h">Never pretends to submit</span></div>
+    <div><i>🏛️</i><span data-i18n="t2_h">Official sources only</span></div>
+    <div><i>🔐</i><span data-i18n="t3_h">Your data stays yours</span></div>
+  </div>
+
+  <section id="how" class="block rv">
+    <h2 data-gl data-i18n="how_h">Four simple steps.</h2>
+    <ol class="steps">
+      <li><span>1</span><h3 data-i18n="s1_h">You speak or type</h3><p data-i18n="s1_p">Use the microphone or keyboard, or tap a common problem.</p></li>
+      <li><span>2</span><h3 data-i18n="s2_h">Awaaz asks questions</h3><p data-i18n="s2_p">If something is missing, it asks short questions.</p></li>
+      <li><span>3</span><h3 data-i18n="s3_h">It checks official sites</h3><p data-i18n="s3_p">It reads government websites to find the right department and portal.</p></li>
+      <li><span>4</span><h3 data-i18n="s4_h">You get a ready complaint</h3><p data-i18n="s4_p">A formal letter and the steps to submit it. You submit it yourself.</p></li>
+    </ol>
+  </section>
+
+  <section id="assistant" class="block rv">
+    <h2 data-gl data-i18n="asm_h">Tell us what happened.</h2>
+    <div class="status" id="apiStatus" role="status">…</div>
+
+    <h3 class="subh" data-i18n="common_h">Common problems</h3>
+    <div class="guided" id="guided" role="group"></div>
+
+    <div class="workspace">
+      <div class="panel chat">
+        <div id="log" class="log" aria-live="polite">
+          <div class="bubble bot" data-i18n="greet">Namaste. Tell me your problem — what happened, where, and when. You can press the microphone and speak. Please do not type Aadhaar, PAN or bank numbers.</div>
+        </div>
+        <div class="piiwarn" id="piiWarn" hidden>It looks like you typed a private number (Aadhaar, PAN or card). It will be removed before the AI sees it — please delete it anyway.</div>
+        <form id="composer" class="composer">
+          <button type="button" id="mic" class="icon" aria-label="Speak" data-i18n-aria="cta_speak" title="Speak">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+          <label class="icon" for="docFile" title="Add a photo or PDF of a bill, notice or receipt" aria-label="Add document">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.5 12.5 21a5.5 5.5 0 0 1-8-8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8-8"/></svg>
+          </label>
+          <input type="file" id="docFile" accept="application/pdf,image/jpeg,image/png" hidden>
+          <textarea id="msg" rows="2" placeholder="Type or speak your problem…" data-i18n-ph="ph_msg" aria-label="Your problem" maxlength="3000"></textarea>
+          <button class="btn" id="send" data-i18n="send">Send</button>
+        </form>
+      </div>
+
+      <div class="panel result" id="result" aria-live="polite">
+        <h3 data-i18n="result_h">Your complaint</h3>
+        <p class="muted" id="resultEmpty" data-i18n="result_empty">Your department, portal, steps and formal draft will appear here.</p>
+        <div id="resultBody" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="saved" class="block rv">
+    <h2 data-gl data-i18n="saved_h">Come back anytime.</h2>
+    <p class="muted gate" id="savedGate" data-i18n="saved_gate">Log in to save your details, drafts, documents and follow-ups.</p>
+    <div class="grid3" id="savedGrid">
+      <div class="panel">
+        <h3 data-i18n="p_details">My details</h3>
+        <form id="profile" class="stack">
+          <input name="name" data-i18n-ph="ph_name" placeholder="Full name" autocomplete="name" maxlength="100">
+          <input name="phone" data-i18n-ph="ph_phone" placeholder="Phone" autocomplete="tel" maxlength="20">
+          <input name="state" data-i18n-ph="ph_state" placeholder="State" maxlength="60">
+          <textarea name="address" rows="2" data-i18n-ph="ph_addr" placeholder="Address" maxlength="400"></textarea>
+          <button class="btn small" data-i18n="b_save">Save</button>
+          <small class="muted" id="profileNote">Used to fill [NAME], [ADDRESS] and [PHONE] in your drafts on your device.</small>
+        </form>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="p_drafts">Complaints &amp; follow-ups</h3>
+        <ul id="drafts" class="list"><li class="muted">—</li></ul>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="p_docs">Documents</h3>
+        <ul id="docs" class="list"><li class="muted">—</li></ul>
+        <small class="muted">PDF, JPG or PNG, up to 8 MB.</small>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="p_watch">Watched official pages</h3>
+        <form id="srcForm" class="stack inline">
+          <input id="srcUrl" type="url" placeholder="https://…gov.in/…" required maxlength="500" aria-label="Official page URL">
+          <button class="btn small">+</button>
+        </form>
+        <ul id="sources" class="list"><li class="muted">—</li></ul>
+        <button class="btn ghost small" id="checkSources" type="button" data-i18n="b_recheck">Recheck now</button>
+        <small class="muted">Pages are also rechecked automatically every day.</small>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="p_data">Your data</h3>
+        <div class="actions">
+          <button class="btn ghost small" id="exportMe" type="button" data-i18n="b_export">Download my data</button>
+          <button class="btn ghost small danger" id="deleteMe" type="button" data-i18n="b_delete">Delete my account</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="trust" class="block rv">
+    <h2 data-gl data-i18n="trust_h">Honest by design.</h2>
+    <div class="grid3 trust">
+      <article><div class="ico">🛡️</div><h3 data-i18n="t1_h">Never pretends to submit</h3><p data-i18n="t1_p">Awaaz prepares. You file.</p></article>
+      <article><div class="ico">🏛️</div><h3 data-i18n="t2_h">Official sources only</h3><p><span data-i18n="t2_p">Only government websites are read.</span> <a href="verify.html">→</a></p></article>
+      <article><div class="ico">🔐</div><h3 data-i18n="t3_h">Your data stays yours</h3><p><span data-i18n="t3_p">Personal details are encrypted.</span> <a href="privacy.html">→</a></p></article>
+    </div>
+  </section>
+
+  <section class="block feedback" id="feedbackSec">
+    <form id="fbForm" class="stack inline">
+      <input id="fbText" placeholder="Was Awaaz right? Tell us what to fix." maxlength="1000" aria-label="Feedback">
+      <button class="btn small ghost" data-i18n="send">Send</button>
+    </form>
+    <small class="muted" id="fbNote"></small>
+  </section>
+</main>
+
+<footer>
+  <span>© <span id="yr"></span> Awaaz</span>
+  <span class="links"><a href="about.html">About</a> <a href="privacy.html">Privacy</a> <a href="verify.html">How we verify</a></span>
+  <span class="muted" data-i18n="f_note">Awaaz is not a government service and does not file complaints for you.</span>
+</footer>
+
+<nav class="mbar" aria-label="Quick actions">
+  <button class="btn" id="mbarSpeak" type="button" data-i18n="cta_speak">Tap to speak</button>
+  <a class="btn ghost" href="#assistant" data-i18n="cta_type">Type instead</a>
+</nav>
+
+<dialog id="authDlg" aria-labelledby="authTitle">
+  <form class="stack" id="authForm">
+    <h3 id="authTitle" data-i18n="auth_login">Log in to Awaaz</h3>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-mode="login" aria-selected="true" data-i18n="tab_pw">Password</button>
+      <button type="button" role="tab" data-mode="otp" aria-selected="false" data-i18n="tab_sms">SMS code</button>
+      <button type="button" role="tab" data-mode="register" aria-selected="false" data-i18n="tab_new">New account</button>
+    </div>
+    <input id="aId" placeholder="Mobile number or email" data-i18n-ph="ph_id" autocomplete="username" required maxlength="100">
+    <input id="aName" placeholder="Name" autocomplete="name" maxlength="100" hidden>
+    <input id="aPw" type="password" placeholder="Password (8+ characters)" data-i18n-ph="ph_pw" autocomplete="current-password" maxlength="128">
+    <div id="aOtpRow" class="stack inline" hidden>
+      <input id="aCode" inputmode="numeric" placeholder="123456" maxlength="6" autocomplete="one-time-code">
+      <button type="button" class="btn small ghost" id="aSendOtp">SMS</button>
+    </div>
+    <label class="check" id="aConsentRow" hidden><input type="checkbox" id="aConsent"> <span data-i18n="consent">I agree to the privacy terms.</span> <a href="privacy.html" target="_blank">→</a></label>
+    <p class="muted" id="aMsg" role="status"></p>
+    <div class="actions"><button class="btn" id="aGo" type="submit" data-i18n="continue">Continue</button><button class="btn ghost" type="button" id="aCancel" data-i18n="cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<script src="bg.js" defer></script>
+<script src="i18n.js" defer></script>
+<script src="i18n-extra.js" defer></script>
+<script src="gltext.js" defer></script>
+<script src="voice.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
